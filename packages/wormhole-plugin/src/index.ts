@@ -1,4 +1,4 @@
-import { createPlugin } from "every-plugin";
+import { createPlugin, PluginConfigurationError } from "every-plugin";
 import { Effect } from "every-plugin/effect";
 import { z } from "every-plugin/zod";
 
@@ -59,15 +59,57 @@ export default createPlugin({
     const { service } = context;
 
     return {
-      getSnapshot: builder.getSnapshot.handler(async ({ input }) => {
-        const snapshot = await Effect.runPromise(
-          service.getSnapshot(input)
-        );
-        return snapshot;
+      getSnapshot: builder.getSnapshot.handler(async ({ input, errors }) => {
+        try {
+          const snapshot = await Effect.runPromise(
+            service.getSnapshot(input)
+          );
+          return snapshot;
+        } catch (error) {
+          // Map errors to CommonPluginErrors following guide best practices
+          if (error instanceof PluginConfigurationError) {
+            throw errors.UNAUTHORIZED({
+              message: error.message,
+              data: { apiKeyProvided: true },
+            });
+          }
+
+          if (error instanceof Error && error.message.includes("Rate limited")) {
+            const retryAfterMatch = error.message.match(/Retry after (\d+) seconds/);
+            const retryAfter = retryAfterMatch ? parseInt(retryAfterMatch[1], 10) : 60;
+            
+            throw errors.RATE_LIMITED({
+              message: "API rate limit exceeded",
+              data: { retryAfter, limitType: "requests" as const },
+            });
+          }
+
+          // Map other errors to SERVICE_UNAVAILABLE
+          throw errors.SERVICE_UNAVAILABLE({
+            message: error instanceof Error ? error.message : "Unknown error occurred",
+            data: { retryAfter: 30 },
+          });
+        }
       }),
 
-      ping: builder.ping.handler(async () => {
-        return await Effect.runPromise(service.ping());
+      ping: builder.ping.handler(async ({ errors }) => {
+        try {
+          return await Effect.runPromise(service.ping());
+        } catch (error) {
+          // Ping should generally succeed, but handle errors gracefully
+          if (error instanceof PluginConfigurationError) {
+            throw errors.UNAUTHORIZED({
+              message: error.message,
+              data: { apiKeyProvided: true },
+            });
+          }
+
+          // Even if ping fails, return ok status (health check should be resilient)
+          return {
+            status: "ok" as const,
+            timestamp: new Date().toISOString(),
+          };
+        }
       }),
     };
   }

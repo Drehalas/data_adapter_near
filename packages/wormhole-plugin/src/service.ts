@@ -1,4 +1,5 @@
 import { Effect } from "every-plugin/effect";
+import { PluginConfigurationError } from "every-plugin";
 import type { z } from "every-plugin/zod";
 
 // Import types from contract
@@ -158,12 +159,16 @@ export class WormholeService {
             // Handle rate limiting
             if (response.status === 429) {
               const retryAfter = parseInt(response.headers.get("Retry-After") || "60", 10);
+              // Create error with retry information (will be caught and handled)
               throw new Error(`Rate limited. Retry after ${retryAfter} seconds`);
             }
 
             // Handle authentication errors
             if (response.status === 401 || response.status === 403) {
-              throw new Error(`Authentication failed: ${response.statusText}`);
+              throw new PluginConfigurationError({
+                message: "Invalid API credentials or insufficient permissions",
+                retryable: false,
+              });
             }
 
             // Other HTTP errors
@@ -182,10 +187,15 @@ export class WormholeService {
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
 
-        // Don't retry on authentication errors or client errors (except rate limiting)
+        // Re-throw configuration errors immediately (no retry)
+        if (error instanceof PluginConfigurationError) {
+          throw error;
+        }
+
+        // Don't retry on client errors (except rate limiting) or network errors
         if (
-          lastError.message.includes("Authentication failed") ||
-          (lastError instanceof TypeError && lastError.message.includes("fetch"))
+          (lastError instanceof TypeError && lastError.message.includes("fetch")) ||
+          (lastError.message.includes("Authentication failed"))
         ) {
           throw lastError;
         }
