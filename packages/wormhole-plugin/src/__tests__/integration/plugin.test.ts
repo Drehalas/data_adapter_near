@@ -55,16 +55,24 @@ describe("Wormhole Plugin Integration Tests", () => {
     TEST_PLUGIN_MAP
   );
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    // Default to fallback behavior when API unavailable
-    (global.fetch as any).mockRejectedValue(new Error("API unavailable"));
-  });
-
   beforeAll(async () => {
+    // Set up fetch mock before initializing plugin
+    // Mock fetch to return ok for health checks during initialization
+    (global.fetch as any).mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ status: "ok" }),
+    });
+    
     const { initialized } = await runtime.usePlugin("@every-plugin/wormhole", TEST_CONFIG);
     expect(initialized).toBeDefined();
     expect(initialized.plugin.id).toBe("@every-plugin/wormhole");
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Default to fallback behavior when API unavailable for actual test calls
+    (global.fetch as any).mockRejectedValue(new Error("API unavailable"));
   });
 
   describe("getSnapshot procedure", () => {

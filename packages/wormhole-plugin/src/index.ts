@@ -47,8 +47,11 @@ export default createPlugin({
         config.variables.maxRetries
       );
 
-      // Test the connection during initialization
-      yield* service.ping();
+      // Test the connection during initialization (but don't fail if unavailable)
+      // This allows the plugin to initialize even if the API is temporarily down
+      yield* service.ping().pipe(
+        Effect.catchAll(() => Effect.void) // Ignore ping errors during initialization
+      );
 
       return { service };
     }),

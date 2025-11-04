@@ -1,12 +1,20 @@
 const path = require("node:path");
 const { rspack } = require("@rspack/core");
-const { withZephyr } = require("zephyr-rspack-plugin");
 
 const pkg = require("./package.json");
 
 const { getNormalizedRemoteName } = require("every-plugin/normalize");
 
 const everyPluginPkg = require("every-plugin/package.json");
+
+// Optional zephyr support (for deployment)
+let withZephyr = (config) => config;
+try {
+  const zephyrPlugin = require("zephyr-rspack-plugin");
+  withZephyr = zephyrPlugin.withZephyr || withZephyr;
+} catch (e) {
+  // zephyr-rspack-plugin not available, use plain config
+}
 
 function getPluginInfo() {
   return {
@@ -20,7 +28,7 @@ function getPluginInfo() {
 
 const pluginInfo = getPluginInfo();
 
-module.exports = withZephyr({
+const config = {
   hooks: {
       onDeployComplete: (info) => {
         console.log('🚀 Deployment Complete!');
@@ -114,4 +122,6 @@ module.exports = withZephyr({
       },
     }),
   ],
-});
+};
+
+module.exports = withZephyr(config);

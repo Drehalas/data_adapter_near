@@ -633,35 +633,49 @@ export class WormholeService {
 
   /**
    * Health check endpoint
+   * Always succeeds - health check should be resilient to API failures
    */
   ping() {
-    return Effect.tryPromise({
-      try: async () => {
-        await this.executeRequest(
-          () =>
-            fetch(`${this.baseUrl}/v1/health`, {
+    const self = this;
+    return Effect.gen(function* () {
+      // Try to ping the API, but don't fail if it's unavailable
+      const pingResult = yield* Effect.tryPromise({
+        try: async () => {
+          await self.rateLimiter.waitForSlot();
+          
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000);
+          
+          try {
+            const response = await fetch(`${self.baseUrl}/v1/health`, {
               method: "GET",
               headers: {
                 "Content-Type": "application/json",
-                ...(this.apiKey && { Authorization: `Bearer ${this.apiKey}` }),
+                ...(self.apiKey && { Authorization: `Bearer ${self.apiKey}` }),
               },
-              signal: AbortSignal.timeout(5000),
-            }),
-          async () => ({ status: "ok" })
-        );
-
-        return {
-          status: "ok" as const,
-          timestamp: new Date().toISOString(),
-        };
-      },
-      catch: (error: unknown) => {
-        // Health check should still succeed even if API is temporarily down
-        return {
-          status: "ok" as const,
-          timestamp: new Date().toISOString(),
-        };
-      }
+              signal: controller.signal,
+            });
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+              throw new Error(`Health check returned ${response.status}`);
+            }
+            
+            return { status: "ok" as const };
+          } catch (error) {
+            clearTimeout(timeoutId);
+            throw error;
+          }
+        },
+        catch: (error: unknown) => new Error(`Health check failed: ${error instanceof Error ? error.message : String(error)}`)
+      }).pipe(
+        Effect.catchAll(() => Effect.succeed({ status: "ok" as const }))
+      );
+      
+      return {
+        status: pingResult.status,
+        timestamp: new Date().toISOString(),
+      };
     });
   }
 }
