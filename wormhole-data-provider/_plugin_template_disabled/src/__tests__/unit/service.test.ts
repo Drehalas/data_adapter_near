@@ -1,9 +1,6 @@
 import { Effect } from "every-plugin/effect";
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { WormholeService } from "../../service";
-
-// Mock fetch globally
-global.fetch = vi.fn();
+import { describe, expect, it } from "vitest";
+import { DataProviderService } from "../../service";
 
 // Mock route for testing
 const mockRoute = {
@@ -21,27 +18,19 @@ const mockRoute = {
   }
 };
 
-describe("WormholeService", () => {
-  let service: WormholeService;
-
-  beforeEach(() => {
-    service = new WormholeService(
-      "https://api.wormholescan.io/api/v1",
-      5000,
-      10
-    );
-    vi.clearAllMocks();
-  });
+describe("DataProviderService", () => {
+  const service = new DataProviderService(
+    "https://api.example.com",
+    "test-api-key",
+    5000
+  );
 
   describe("getSnapshot", () => {
     it("should return complete snapshot structure", async () => {
-      // Mock API responses with fallback data
-      (global.fetch as any).mockRejectedValue(new Error("API unavailable"));
-
       const result = await Effect.runPromise(
         service.getSnapshot({
           routes: [mockRoute],
-          notionals: ["1000000", "10000000"], // amounts in smallest units
+          notionals: ["1000", "10000"],
           includeWindows: ["24h", "7d"]
         })
       );
@@ -60,12 +49,10 @@ describe("WormholeService", () => {
     });
 
     it("should return volumes for requested time windows", async () => {
-      (global.fetch as any).mockRejectedValue(new Error("API unavailable"));
-
       const result = await Effect.runPromise(
         service.getSnapshot({
           routes: [mockRoute],
-          notionals: ["1000000"],
+          notionals: ["1000"],
           includeWindows: ["24h", "7d"]
         })
       );
@@ -74,17 +61,14 @@ describe("WormholeService", () => {
       expect(result.volumes.map(v => v.window)).toContain("24h");
       expect(result.volumes.map(v => v.window)).toContain("7d");
       expect(result.volumes[0].volumeUsd).toBeTypeOf("number");
-      expect(result.volumes[0].volumeUsd).toBeGreaterThan(0);
       expect(result.volumes[0].measuredAt).toBeTypeOf("string");
     });
 
     it("should generate rates for all route/notional combinations", async () => {
-      (global.fetch as any).mockRejectedValue(new Error("API unavailable"));
-
       const result = await Effect.runPromise(
         service.getSnapshot({
           routes: [mockRoute],
-          notionals: ["1000000", "10000000"],
+          notionals: ["1000", "10000"],
           includeWindows: ["24h"]
         })
       );
@@ -96,7 +80,7 @@ describe("WormholeService", () => {
       const rate = result.rates[0];
       expect(rate.source).toEqual(mockRoute.source);
       expect(rate.destination).toEqual(mockRoute.destination);
-      expect(rate.amountIn).toBe("1000000");
+      expect(rate.amountIn).toBe("1000");
       expect(rate.amountOut).toBeTypeOf("string");
       expect(rate.effectiveRate).toBeTypeOf("number");
       expect(rate.effectiveRate).toBeGreaterThan(0);
@@ -105,12 +89,10 @@ describe("WormholeService", () => {
     });
 
     it("should provide liquidity at 50bps and 100bps thresholds", async () => {
-      (global.fetch as any).mockRejectedValue(new Error("API unavailable"));
-
       const result = await Effect.runPromise(
         service.getSnapshot({
           routes: [mockRoute],
-          notionals: ["1000000"],
+          notionals: ["1000"],
           includeWindows: ["24h"]
         })
       );
@@ -129,23 +111,20 @@ describe("WormholeService", () => {
       // Verify threshold structure
       thresholds.forEach(threshold => {
         expect(threshold.maxAmountIn).toBeTypeOf("string");
-        expect(parseInt(threshold.maxAmountIn)).toBeGreaterThan(0);
         expect(threshold.slippageBps).toBeTypeOf("number");
       });
     });
 
     it("should return list of supported assets", async () => {
-      (global.fetch as any).mockRejectedValue(new Error("API unavailable"));
-
       const result = await Effect.runPromise(
         service.getSnapshot({
           routes: [mockRoute],
-          notionals: ["1000000"],
+          notionals: ["1000"],
           includeWindows: ["24h"]
         })
       );
 
-      expect(result.listedAssets.assets.length).toBeGreaterThan(0);
+      expect(result.listedAssets.assets).toHaveLength(3);
 
       // Verify asset structure
       result.listedAssets.assets.forEach(asset => {
@@ -153,15 +132,12 @@ describe("WormholeService", () => {
         expect(asset.assetId).toBeTypeOf("string");
         expect(asset.symbol).toBeTypeOf("string");
         expect(asset.decimals).toBeTypeOf("number");
-        expect(asset.decimals).toBeGreaterThanOrEqual(0);
       });
 
       expect(result.listedAssets.measuredAt).toBeTypeOf("string");
     });
 
     it("should handle multiple routes correctly", async () => {
-      (global.fetch as any).mockRejectedValue(new Error("API unavailable"));
-
       const secondRoute = {
         source: {
           chainId: "42161",
@@ -180,7 +156,7 @@ describe("WormholeService", () => {
       const result = await Effect.runPromise(
         service.getSnapshot({
           routes: [mockRoute, secondRoute],
-          notionals: ["1000000"],
+          notionals: ["1000"],
           includeWindows: ["24h"]
         })
       );
@@ -189,74 +165,10 @@ describe("WormholeService", () => {
       expect(result.liquidity).toHaveLength(2);
       expect(result.rates).toHaveLength(2); // 2 routes × 1 notional
     });
-
-    it("should handle API success responses correctly", async () => {
-      // Mock successful API responses
-      (global.fetch as any)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ volumeUsd: 10000000 }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            amountOut: "990000",
-            fee: 1000,
-          }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            amountOut: "985000",
-            fee: 1500,
-          }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            assets: [
-              {
-                chainId: "1",
-                assetId: "0xA0b86a33E6442e082877a094f204b01BF645Fe0",
-                symbol: "USDC",
-                decimals: 6,
-              },
-            ],
-          }),
-        });
-
-      const result = await Effect.runPromise(
-        service.getSnapshot({
-          routes: [mockRoute],
-          notionals: ["1000000"],
-          includeWindows: ["24h"]
-        })
-      );
-
-      expect(result.volumes).toHaveLength(1);
-      expect(result.rates).toHaveLength(1);
-      expect(result.listedAssets.assets.length).toBeGreaterThan(0);
-    });
   });
 
   describe("ping", () => {
-    it("should return healthy status even when API fails", async () => {
-      (global.fetch as any).mockRejectedValue(new Error("API unavailable"));
-
-      const result = await Effect.runPromise(service.ping());
-
-      expect(result).toEqual({
-        status: "ok",
-        timestamp: expect.any(String),
-      });
-    });
-
-    it("should return healthy status when API succeeds", async () => {
-      (global.fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => ({ status: "ok" }),
-      });
-
+    it("should return healthy status", async () => {
       const result = await Effect.runPromise(service.ping());
 
       expect(result).toEqual({

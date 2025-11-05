@@ -24,14 +24,13 @@ export default createPlugin({
   id: "@every-plugin/wormhole",
 
   variables: z.object({
-    baseUrl: z.string().url().default("https://api.wormhole.com"),
+    baseUrl: z.string().url().default("https://api.wormholescan.io/api/v1"),
     timeout: z.number().min(1000).max(60000).default(10000),
     requestsPerSecond: z.number().min(1).max(100).default(10),
-    maxRetries: z.number().min(0).max(10).default(3),
   }),
 
   secrets: z.object({
-    apiKey: z.string().min(1, "API key is required").optional(),
+    apiKey: z.string().optional(),
   }),
 
   contract,
@@ -41,10 +40,8 @@ export default createPlugin({
       // Create service instance with config
       const service = new WormholeService(
         config.variables.baseUrl,
-        config.secrets.apiKey || "",
         config.variables.timeout,
-        config.variables.requestsPerSecond,
-        config.variables.maxRetries
+        config.variables.requestsPerSecond
       );
 
       // Test the connection during initialization (but don't fail if unavailable)
