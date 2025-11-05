@@ -18,26 +18,12 @@ const mockRoute = {
   }
 };
 
-<<<<<<<< HEAD:wormhole-data-provider/_plugin_template_disabled/src/__tests__/unit/service.test.ts
 describe("DataProviderService", () => {
   const service = new DataProviderService(
     "https://api.example.com",
     "test-api-key",
     5000
   );
-========
-describe("WormholeService", () => {
-  let service: WormholeService;
-
-  beforeEach(() => {
-    service = new WormholeService(
-      "https://api.wormholescan.io/api/v1",
-      5000,
-      10
-    );
-    vi.clearAllMocks();
-  });
->>>>>>>> 1bcffb400398181f2481c875e41187672341cce8:packages/wormhole-plugin/src/__tests__/unit/service.test.ts
 
   describe("getSnapshot", () => {
     it("should return complete snapshot structure", async () => {
