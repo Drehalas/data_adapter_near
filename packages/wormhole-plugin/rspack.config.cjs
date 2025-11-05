@@ -29,17 +29,6 @@ function getPluginInfo() {
 const pluginInfo = getPluginInfo();
 
 const config = {
-  hooks: {
-      onDeployComplete: (info) => {
-        console.log('Deployment Complete!');
-        console.log(`   URL: ${info.url}`);
-        console.log(`   Module: ${info.snapshot.uid.app_name}`);
-        console.log(`   Build ID: ${info.snapshot.uid.build}`);
-        console.log(`   Dependencies: ${info.federatedDependencies.length}`);
-        console.log(`   Git: ${info.snapshot.git.branch}@${info.snapshot.git.commit}`);
-        console.log(`   CI: ${info.buildStats.context.isCI ? 'Yes' : 'No'}`);
-      },
-    },
   entry: "./src/index",
   mode: process.env.NODE_ENV === "development" ? "development" : "production",
   target: "async-node",
@@ -54,7 +43,7 @@ const config = {
   devServer: {
     static: path.join(__dirname, "dist"),
     hot: true,
-    port: 3014,
+    port: 3015,
     devMiddleware: {
       writeToDisk: true,
     },
