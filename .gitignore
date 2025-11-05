@@ -46,3 +46,6 @@ lerna-debug.log*
 # pnpm-lock.yaml
 # bun.lockb
 
+MD
+packages
+.claude
