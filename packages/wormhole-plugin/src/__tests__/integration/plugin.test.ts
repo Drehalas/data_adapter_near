@@ -39,7 +39,7 @@ const TEST_CONFIG = {
     baseUrl: "https://api.wormhole.com",
     timeout: 5000,
     requestsPerSecond: 10,
-    maxRetries: 3,
+    maxRetries: 0, // No retries in tests to avoid timeout
   },
   secrets: {
     apiKey: "test-api-key",

@@ -31,7 +31,7 @@ const pluginInfo = getPluginInfo();
 const config = {
   hooks: {
       onDeployComplete: (info) => {
-        console.log('🚀 Deployment Complete!');
+        console.log('Deployment Complete!');
         console.log(`   URL: ${info.url}`);
         console.log(`   Module: ${info.snapshot.uid.app_name}`);
         console.log(`   Build ID: ${info.snapshot.uid.build}`);
@@ -40,7 +40,6 @@ const config = {
         console.log(`   CI: ${info.buildStats.context.isCI ? 'Yes' : 'No'}`);
       },
     },
-})({
   entry: "./src/index",
   mode: process.env.NODE_ENV === "development" ? "development" : "production",
   target: "async-node",

@@ -25,12 +25,13 @@ describe("WormholeService", () => {
   let service: WormholeService;
 
   beforeEach(() => {
+    // Use maxRetries=0 for tests to avoid retry delays
     service = new WormholeService(
       "https://api.wormhole.com",
       "test-api-key",
       5000,
       10,
-      3
+      0 // No retries in tests to avoid timeout
     );
     vi.clearAllMocks();
   });
