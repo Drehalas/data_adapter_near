@@ -47,5 +47,6 @@ lerna-debug.log*
 # bun.lockb
 
 MD
-packages
 .claude
+docs
+packages
